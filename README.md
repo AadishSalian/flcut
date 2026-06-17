@@ -30,7 +30,7 @@ The PRD left a few things intentionally blank, so here's how I filled the gaps:
 
 1. **Authentication**: The PRD didn't mention login and logout. I assumed speed is what we require at this scenario. Having to log in to create a link takes a lot of time.
 2. **Expired Link Analytics**: What happens if someone clicks an expired link?the link will be disabled that is the page says we cannot reach the page 
-3. **What is unique click**: It is the number of clicks the users have clicked on the lick
+3. **What is unique click**: It is the number of clicks the users have clicked on the link.
 
 ---
 
