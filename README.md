@@ -41,4 +41,4 @@ The PRD left a few things intentionally blank, so here's how I filled the gaps:
 - Prisma ORM 7 (with `@prisma/adapter-pg`)
 - Tailwind CSS v4
 
-Note: I used claude to format my README.md file
+
