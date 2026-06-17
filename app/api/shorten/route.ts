@@ -51,6 +51,8 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const shortUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/${link.slug}`;
+  const host = req.headers.get("host") || "localhost:3000";
+  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+  const shortUrl = `${protocol}://${host}/${link.slug}`;
   return NextResponse.json({ shortUrl, slug });
 }
