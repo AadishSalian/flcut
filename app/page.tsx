@@ -1,65 +1,158 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect } from "react";
+
+type Link = {
+  id: string;
+  slug: string;
+  originalUrl: string;
+  clicks: number;
+  createdAt: string;
+  expiresAt: string | null;
+};
 
 export default function Home() {
+  const [url, setUrl] = useState("");
+  const [customSlug, setCustomSlug] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [shortUrl, setShortUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [links, setLinks] = useState<Link[]>([]);
+
+  async function fetchLinks() {
+    const res = await fetch("/api/links");
+    const data = await res.json();
+    setLinks(data);
+  }
+
+  useEffect(() => {
+    fetchLinks();
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setShortUrl("");
+
+    const res = await fetch("/api/shorten", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, customSlug, expiresAt }),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (!res.ok) return setError(data.error);
+    setShortUrl(data.shortUrl);
+    setUrl("");
+    setCustomSlug("");
+    setExpiresAt("");
+    fetchLinks();
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(shortUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="min-h-screen bg-gray-50 text-gray-900 p-8 max-w-2xl mx-auto">
+      <h1 className="text-3xl font-bold mb-2 text-gray-900">FLCut</h1>
+      <p className="text-gray-500 mb-8">Link shortener for Finite Loop Club</p>
+
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-6 rounded-xl shadow space-y-4 mb-10 border border-gray-200"
+      >
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="Paste your long URL here..."
+          className="w-full border border-gray-300 rounded px-4 py-2 text-sm text-gray-900 bg-white placeholder-gray-400"
+          required
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <input
+          type="text"
+          value={customSlug}
+          onChange={(e) => setCustomSlug(e.target.value)}
+          placeholder="Custom slug (optional) e.g. hackfest26"
+          className="w-full border border-gray-300 rounded px-4 py-2 text-sm text-gray-900 bg-white placeholder-gray-400"
+        />
+        <div>
+          <label className="text-xs text-gray-500">Expires at (optional)</label>
+          <input
+            type="datetime-local"
+            value={expiresAt}
+            onChange={(e) => setExpiresAt(e.target.value)}
+            className="w-full border border-gray-300 rounded px-4 py-2 text-sm text-gray-900 bg-white mt-1"
+          />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50 font-medium"
+        >
+          {loading ? "Shortening..." : "Shorten Link"}
+        </button>
+
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+
+        {shortUrl && (
+          <div className="flex items-center gap-3 bg-gray-100 px-4 py-3 rounded border border-gray-200">
+            <a
+              href={shortUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline text-sm flex-1 break-all"
+            >
+              {shortUrl}
+            </a>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="text-xs bg-white border border-gray-300 px-2 py-1 rounded text-gray-700 hover:bg-gray-50"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+        )}
+      </form>
+
+      <h2 className="text-xl font-semibold mb-4 text-gray-900">Your Links</h2>
+
+      {links.length === 0 && (
+        <p className="text-gray-400 text-sm">No links yet. Create one above.</p>
+      )}
+
+      <div className="space-y-3">
+        {links.map((link) => (
+          <div
+            key={link.id}
+            className="bg-white p-4 rounded-xl shadow border border-gray-200 flex justify-between items-center"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <div>
+              <p className="font-medium text-blue-600">/{link.slug}</p>
+              <p className="text-xs text-gray-400 truncate max-w-xs">
+                {link.originalUrl}
+              </p>
+              {link.expiresAt && (
+                <p className="text-xs text-orange-500">
+                  Expires: {new Date(link.expiresAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-bold text-gray-900">{link.clicks}</p>
+              <p className="text-xs text-gray-400">clicks</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </main>
   );
 }

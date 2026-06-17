@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FLCut - Finite Loop Club Link Shortener
 
-## Getting Started
+Reference build id: FLC-FLCut-2627-Trace-visible
 
-First, run the development server:
+Hey there! This is my submission for the Round 1 Build Challenge. Here's a breakdown of how I approached building this and the reasoning behind my decisions.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## What's my data model, and why did I design it that way?
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+I decided to split the database into two main tables: `Link` and `Click`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **`Link` table**: This handles the core configuration. It stores the `slug`, `originalUrl`, scheduling stuff (`startsAt`, `expiresAt`), and a `clicks` counter. 
+- **`Click` table**: This logs the actual analytics events. Every time a valid user hits a link, I create a record here with their `ip`, `device`, and `referrer`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Why?** I wanted to keep the reads fast for the main dashboard. By keeping a simple integer `clicks` counter on the `Link` table, I don't have to run an expensive `COUNT()` query on the `Click` table every time the dashboard loads. The `Click` table acts as an append-only log that we can query heavily later when we actually want to draw time-series charts or figure out if a spike came from Instagram or WhatsApp.
 
-## Learn More
+## If I only had 4 hours, what would I have built first, and what would I cut?
 
-To learn more about Next.js, take a look at the following resources:
+**What I'd build first:**
+The absolute core loop: paste a long URL -> generate a random 6-character nanoid slug -> save to DB -> redirect when visited. That's the bare minimum for it to be a link shortener.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**What I'd cut:**
+I would immediately cut the custom aliases and the scheduling features (`startsAt`/`expiresAt`). Handling custom alias collisions and ensuring reserved words aren't taken takes time to get right. Scheduling requires extra logic in the middleware/routing layer. I'd also cut the detailed analytics (the `Click` table) and just stick to a dumb `+1` counter on the main link table.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Name one tradeoff you made and what you gave up.
 
-## Deploy on Vercel
+**The tradeoff:** I prioritized a rock-solid, functional backend (catching reserved words, handling async Prisma 7 quirks, basic bot exclusion) over building a flashy, detailed analytics dashboard on the frontend.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**What I gave up:** The dashboard right now only shows the total click count. Even though the database is actively capturing rich data (device types, referrers, IPs), the user interface to visualize that time-series data isn't there yet. I figured it was better to reliably *collect* the data first rather than build a pretty chart with broken or missing underlying data.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## What did I assume because this PRD didn't tell me?
+
+The PRD left a few things intentionally blank, so here's how I filled the gaps:
+
+1. **Authentication**: The PRD didn't mention logins. I assumed that since FLC is a tight-knit club running fast-paced events, speed is key. Having to log in to create a link is friction. So, I left it open for the MVP. If people start abusing it, we can easily slap a simple password or NextAuth on top later.
+2. **"Unique" Clicks**: There is no universal definition of a unique click. I decided to define it as a unique IP address per link. I know college Wi-Fi can share IPs (NAT), so it's not 100% perfect, but it's a "good enough" proxy to stop one guy mashing refresh from ruining the stats.
+3. **Expired Link Analytics**: What happens if someone clicks an expired link? I assumed that we shouldn't count that as a valid analytic event. If a hackathon registration is closed, and someone clicks the link on an old WhatsApp forward, logging that click just pollutes our data on what channels successfully drove *active* event traffic. We just show them the expired message and move on.
+
+---
+
+### Tech Stack Used
+- Next.js 16 (App Router)
+- TypeScript
+- PostgreSQL (Neon)
+- Prisma ORM 7 (with `@prisma/adapter-pg`)
+- Tailwind CSS v4
